@@ -1,0 +1,78 @@
+---
+title: "Analysis from Edwards 2019"
+date: "Created on 12.09.2022. Last update on `r format(Sys.time(), '%d.%m.%Y')`."
+output: html_notebook
+---
+
+## *Mixotrophy in nanoflagellates across environmental gradients in the ocean*
+
+Paper: https://www.pnas.org/doi/suppl/10.1073/pnas.1814860116
+
+Supplement: https://www.pnas.org/doi/suppl/10.1073/pnas.1814860116/suppl_file/pnas.1814860116.sapp.pdf
+
+Data: https://www.pnas.org/doi/suppl/10.1073/pnas.1814860116/suppl_file/pnas.1814860116.sd01.xlsx
+
+The study mostly focuses on abundance and abundance contributions, but the data contain info on ingestion rates for MNF and HNF. He uses those to estimate how much MNF grazing is underestimated due to inactive or selective grazing behavior.
+
+Mixed layer Chl-a and nitrate were used as predictors for all analyses, intended as proxies of total productivity or nutrient supply at that location.
+
+
+```{r data exploration, message=FALSE, warning=FALSE}
+library(tidyverse)
+
+d <- read.csv("edwards19_data.csv", header = T)
+glimpse(d)
+```
+
+### PCA
+
+The PCA is done with the package pcaMethods that needs to be installed like so
+```{r, message=FALSE, warning=FALSE}
+# if (!require("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+# BiocManager::install("pcaMethods")
+
+library(pcaMethods)
+```
+
+\
+He used "a variant of PCA that can accommodate missing values". I don't know what he did in terms of scaling/centering. Using only the pcaMethod package:
+```{r, echo=TRUE, warning=F}
+pca_dat <- d %>% 
+  select(Temperature, Chl.mixed, Nitrate, PAR, Bacteria) #%>% 
+#  drop_na()
+
+pca_dat <- prep(pca_dat, scale = "uv", center = T) # centering doesn't change anything
+
+(pca <- pca(pca_dat, method = "nipals", mPcs = 2))
+```
+
+In the documentation, NIPLAS can handle small amounts of NAs (generally not more than 5%) while here we have 19%.\
+His results explain 79% of the variation, here 73%. If I remove the NAs before running the PCA the variance explained increases to 76% but the data is reduced a lot; sticking to the original.
+
+```{r, warning=FALSE}
+axes <- as.data.frame(pca@scores)
+arw <- as.data.frame(pca@loadings)
+
+biplot(pca, scaling = 1)
+
+
+pca.plot =
+  ggplot(axes, aes(x = PC1, y = PC2)) + 
+  geom_point(aes(), size = 2) +
+  # geom_text(aes(label = rowname), hjust = 0, vjust = -.7, size = 3) +
+  geom_segment(data = arw, aes(x = 0, y = 0, xend = PC1, yend = PC2), 
+               arrow = arrow(length = unit(0.2,"cm")),
+#               alpha = 0.75, 
+               color = 'darkred', size = 0.5) +
+  geom_text(data = arw, aes(x = PC1, y = PC2),  #rownames(vscores)
+            col = 'red', hjust = -0.5, vjust = 0.2, size = 3.5, parse = T) +
+  geom_vline(xintercept = 0, colour = "grey50", linetype = "dashed") +
+  geom_hline(yintercept = 0, colour = "grey50", linetype = "dashed")
+
+```
+
+
+```{r}
+
+```
